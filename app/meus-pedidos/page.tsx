@@ -1,0 +1,7 @@
+'use client';
+import {useEffect,useState} from 'react';
+import Link from 'next/link';
+import {browserDb,configured} from '@/lib/supabase/browser';
+import {money} from '@/utils/pricing';
+import {statusLabels,type Status} from '@/types';
+export default function Orders(){const [orders,setOrders]=useState<{id:string;number:number;total:number;status:Status}[]>([]);const [message,setMessage]=useState('Carregando seus pedidos…');useEffect(()=>{if(!configured()){setMessage('Os pedidos online ainda não estão habilitados. Quando estiverem, acompanhe seus pedidos por aqui.');return;}let active=true;(async()=>{try{const db=browserDb();const {data:{user}}=await db.auth.getUser();if(!user){if(active)setMessage('Você ainda não fez pedidos neste navegador.');return;}const {data,error}=await db.from('orders').select('id,number,total,status').eq('owner_id',user.id).order('created_at',{ascending:false}).limit(30);if(error)throw error;if(active){setOrders(data||[]);setMessage(data?.length?'':'Você ainda não fez pedidos.');}}catch{if(active)setMessage('Não foi possível carregar seus pedidos. Tente novamente.');}})();return()=>{active=false;};},[]);return <main className="auth"><a href="/#cardapio">← Voltar ao cardápio</a><h1>Meus pedidos</h1><p className="muted" role="status">{message}</p>{orders.map(order=><Link className="cart-line row" key={order.id} href={'/pedido/'+order.id}><span>Pedido #{order.number}<small>{statusLabels[order.status]}</small></span><b>{money(order.total)}</b></Link>)}</main>}

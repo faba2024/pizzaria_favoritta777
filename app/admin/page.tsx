@@ -1,0 +1,4 @@
+import {requireStaff} from '@/lib/auth';
+import {redirect} from 'next/navigation';
+import {Dashboard} from '@/components/dashboard';
+export default async function Page(){const {db,profile}=await requireStaff();if(profile.role!=='admin')redirect('/admin/pedidos');const [orders,customers,restaurant]=await Promise.all([db.from('orders').select('*,order_items(*)').eq('restaurant_id',profile.restaurant_id).gte('created_at',new Date(Date.now()-30*86400000).toISOString()).order('created_at'),db.from('customers').select('*').eq('restaurant_id',profile.restaurant_id),db.from('restaurants').select('timezone').eq('id',profile.restaurant_id).single()]);if(orders.error||customers.error||restaurant.error)throw Error('Não foi possível carregar o painel.');return <Dashboard orders={orders.data} customers={customers.data} timezone={restaurant.data.timezone}/>}

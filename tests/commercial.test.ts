@@ -1,0 +1,31 @@
+import {describe,it,expect} from 'vitest';
+import {previewCatalog} from '../lib/preview-catalog';
+import {priceItem,quoteCart,couponDiscount} from '../utils/pricing';
+import {isOpen,openingLabel} from '../utils/hours';
+import {checkoutWhatsapp} from '../utils/checkout-whatsapp';
+import {checkoutSchema,orderSchema} from '../validations/order';
+import {resources} from '../validations/admin';
+const p=previewCatalog.products[0];
+const item={key:'commercial-test',product_id:p.id,size_id:p.product_sizes[1].id,second_flavor_id:null,addon_ids:[],quantity:1,notes:'Sem cebola'};
+const checkout={name:'Cliente Teste',phone:'77999999999',fulfillment:'delivery' as const,payment:'credit' as const,table_number:'',change_for:'',cep:'46530000',street:'Rua de Teste',number:'10',neighborhood:'Centro',complement:'',city:'Rio do Pires',state:'BA',reference:'',coupon:'PIZZA10'};
+describe('Totais comerciais',()=>{
+ it('Favorita mantém entrega e todas as bordas gratuitas',()=>{for(const zone of previewCatalog.zones){for(const crust of previewCatalog.addons.filter(a=>a.kind==='crust')){expect(quoteCart([{...item,addon_ids:[crust.id]}],previewCatalog,'delivery',zone.name)).toEqual({subtotal:6000,delivery_fee:0,discount:0,total:6000});}}});
+ it('calcula meio a meio, adicionais, quantidade, bairro e cupom sem arredondamento de moeda',()=>{const c=structuredClone(previewCatalog);c.products[1].product_sizes[1].price=7000;const i={...item,second_flavor_id:c.products[1].id,addon_ids:[c.addons[0].id,c.addons[2].id],quantity:2};expect(priceItem(i,c).total).toBe(15200);expect(quoteCart([i],c,'delivery','Bairro A','pizza10')).toEqual({subtotal:15200,delivery_fee:0,discount:1520,total:13680})});
+ it('não cobra entrega na retirada ou no local',()=>{expect(quoteCart([item],previewCatalog,'pickup','','').total).toBe(6000);expect(quoteCart([item],previewCatalog,'table','','').delivery_fee).toBe(0);expect(()=>quoteCart([item],previewCatalog,'delivery','Fora da área')).toThrow('Bairro')});
+ it('valida estoque agregado entre linhas e segundo sabor',()=>{const c=structuredClone(previewCatalog);c.products[0].stock_quantity=1;expect(()=>quoteCart([item,{...item,key:'outro'}],c,'pickup','')).toThrow('Estoque');expect(()=>priceItem({...item,quantity:2},c)).toThrow('Estoque');c.products[1].stock_quantity=0;expect(()=>priceItem({...item,second_flavor_id:c.products[1].id},c)).toThrow('Estoque')});
+ it('aplica promoção por tamanho e preserva maior sabor',()=>{const c=structuredClone(previewCatalog);c.products[0].product_sizes[1].promotional_price=5000;expect(priceItem(item,c).total).toBe(5000);expect(priceItem({...item,second_flavor_id:c.products[1].id},c).total).toBe(6000)});
+ it('rejeita cupons inválidos, vencidos, acima do limite e fora do mínimo',()=>{const coupon=previewCatalog.coupons![0];expect(()=>quoteCart([item],previewCatalog,'pickup','','ERRADO')).toThrow('Cupom');expect(()=>couponDiscount(6000,{...coupon,expires_at:'2020-01-01'})).toThrow('validade');expect(()=>couponDiscount(6000,{...coupon,minimum_order:7000})).toThrow('mínimo');expect(()=>couponDiscount(6000,{...coupon,used_count:1,usage_limit:1})).toThrow('esgotado');expect(couponDiscount(6590,coupon)).toBe(659)});
+ it('não aceita borda em bebida nem mais de uma borda',()=>{const drink=previewCatalog.products[4];expect(()=>priceItem({...item,product_id:drink.id,size_id:null,addon_ids:[previewCatalog.addons[0].id]},previewCatalog)).toThrow('Adicional');expect(()=>priceItem({...item,addon_ids:previewCatalog.addons.filter(a=>a.kind==='crust').map(a=>a.id)},previewCatalog)).toThrow('uma borda')});
+});
+describe('Revisão e WhatsApp',()=>{
+ it('exige mesa de 1 a 12 apenas no consumo local',()=>{for(let n=1;n<=12;n++)expect(checkoutSchema.safeParse({...checkout,fulfillment:'table',table_number:String(n)}).success).toBe(true);for(const n of ['', '0', '13'])expect(checkoutSchema.safeParse({...checkout,fulfillment:'table',table_number:n}).success).toBe(false);expect(checkoutSchema.safeParse({...checkout,fulfillment:'pickup',table_number:''}).success).toBe(true);});
+ it('aceita complemento e referência vazios, crédito e débito',()=>{expect(checkoutSchema.safeParse(checkout).success).toBe(true);expect(checkoutSchema.safeParse({...checkout,payment:'debit'}).success).toBe(true);expect(checkoutSchema.safeParse({...checkout,cep:'1'}).success).toBe(false)});
+ it('mensagem contém os totais da revisão e todas as opções',()=>{const i={...item,addon_ids:[previewCatalog.addons[0].id]};const q=quoteCart([i],previewCatalog,'delivery','Centro','PIZZA10');const url=new URL(checkoutWhatsapp(previewCatalog,[i],checkout,true,q));const text=url.searchParams.get('text')!;expect(url.hostname).toBe('wa.me');expect(text).toContain('Borda Cheddar');expect(text).toContain('Sem cebola');expect(text).toContain('Crédito');expect(text).toContain('R$ 54,00');expect(text).toContain('DEMONSTRAÇÃO');expect(text).toContain('Centro')});
+ it('rejeita troco menor que total e payloads inválidos',()=>{expect(()=>checkoutWhatsapp(previewCatalog,[item],{...checkout,payment:'cash',change_for:'20'},true)).toThrow('troco');expect(orderSchema.safeParse({items:[{...item,quantity:0}],checkout,idempotency_key:crypto.randomUUID()}).success).toBe(false)});
+});
+describe('Funcionamento e administração',()=>{
+ const hours={'4':{open:'18:00',close:'01:00',enabled:true}};
+ it('considera meia-noite e fechamento no fuso da pizzaria',()=>{expect(isOpen(hours,'America/Bahia',new Date('2026-09-11T03:30:00Z'))).toBe(true);expect(isOpen(hours,'America/Bahia',new Date('2026-09-11T04:00:00Z'))).toBe(false);expect(openingLabel(hours,'America/Bahia',new Date('2026-09-10T17:00:00Z'))).toBe('Abre hoje às 18:00')});
+ it('permite nomes de tamanho atuais e rejeita preço promocional acima do original',()=>{const s={product_id:p.id,name:'Grande · 8 fatias',price:6000,promotional_price:5000,active:true};expect(resources.tamanhos.schema.safeParse(s).success).toBe(true);expect(resources.tamanhos.schema.safeParse({...s,promotional_price:7000}).success).toBe(false)});
+ it('valida banner sem produto e configurações de cupom',()=>{expect(resources.promocoes.schema.safeParse({title:'Combo da casa',description:'Teste',product_id:null,active:true}).success).toBe(true);expect(resources.cupons.schema.safeParse({...previewCatalog.coupons![0],value:101}).success).toBe(false)});
+});

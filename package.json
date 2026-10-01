@@ -1,0 +1,40 @@
+{
+  "name": "favorita-saas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "predev": "node scripts/sync-storefront.cjs",
+    "prebuild": "node scripts/sync-storefront.cjs",
+    "fonts": "node scripts/fetch-fonts.cjs --force",
+    "test:e2e": "playwright test",
+    "verify": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "next": "^16.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@supabase/supabase-js": "^2.90.0",
+    "@supabase/ssr": "^0.8.0",
+    "react-hook-form": "^7.71.0",
+    "@hookform/resolvers": "^5.2.0",
+    "zod": "^4.3.0",
+    "lucide-react": "^0.562.0",
+    "recharts": "^3.6.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "vitest": "^4.0.0",
+    "@playwright/test": "^1.56.0"
+  }
+}

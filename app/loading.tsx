@@ -1,0 +1,1 @@
+export default function Loading(){return <main className="container" aria-label="Carregando"><div className="skeleton"/><div className="grid">{[1,2,3].map(i=><div className="skeleton" key={i}/>)}</div></main>}

@@ -1,0 +1,23 @@
+{
+  "generated": "2026-10-01T14:58:07.358Z",
+  "files": [
+    "barlow-condensed-italic-700-latin-ext.woff2",
+    "barlow-condensed-italic-700-latin.woff2",
+    "barlow-condensed-italic-800-latin-ext.woff2",
+    "barlow-condensed-italic-800-latin.woff2",
+    "barlow-condensed-normal-600-latin-ext.woff2",
+    "barlow-condensed-normal-600-latin.woff2",
+    "barlow-condensed-normal-700-latin-ext.woff2",
+    "barlow-condensed-normal-700-latin.woff2",
+    "barlow-condensed-normal-800-latin-ext.woff2",
+    "barlow-condensed-normal-800-latin.woff2",
+    "dm-sans-italic-400-700-latin-ext.woff2",
+    "dm-sans-italic-400-700-latin.woff2",
+    "dm-sans-normal-400-700-latin-ext.woff2",
+    "dm-sans-normal-400-700-latin.woff2"
+  ],
+  "preload": [
+    "barlow-condensed-italic-800-latin.woff2",
+    "dm-sans-normal-400-700-latin.woff2"
+  ]
+}
